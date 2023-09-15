@@ -9,6 +9,7 @@ import { ErrorBoundary, ErrorLogger } from '@bigcommerce/checkout/error-handling
 import { getLanguageService, LocaleProvider } from '@bigcommerce/checkout/locale';
 import { CheckoutProvider } from '@bigcommerce/checkout/payment-integration-api';
 
+import { Helmet } from "react-helmet";
 import '../../scss/App.scss';
 
 import { createErrorLogger } from '../common/error';
@@ -55,11 +56,20 @@ export default class CheckoutApp extends Component<CheckoutAppProps> {
 
     render() {
         return (
+            <>
+            <Helmet>
+                <script
+                    src="https://js.chargebee.com/v2/chargebee.js"
+                >    
+                </script>
+                                
+            </Helmet>
             <ErrorBoundary logger={this.errorLogger}>
                 <LocaleProvider checkoutService={this.checkoutService}>
                     <CheckoutProvider checkoutService={this.checkoutService}>
                         <AnalyticsProvider checkoutService={this.checkoutService}>
                             <ExtensionProvider checkoutService={this.checkoutService}>
+            
                                 <Checkout
                                     {...this.props}
                                     createEmbeddedMessenger={createEmbeddedCheckoutMessenger}
@@ -67,11 +77,13 @@ export default class CheckoutApp extends Component<CheckoutAppProps> {
                                     embeddedSupport={this.embeddedSupport}
                                     errorLogger={this.errorLogger}
                                 />
+                                
                             </ExtensionProvider>
                         </AnalyticsProvider>
                     </CheckoutProvider>
                 </LocaleProvider>
             </ErrorBoundary>
+            </>
         );
     }
 }

@@ -1,17 +1,19 @@
+// @ts-nocheck
 import {
-    Address,
-    Cart,
-    CartChangedError,
-    CheckoutParams,
-    CheckoutSelectors,
-    Consignment,
-    EmbeddedCheckoutMessenger,
-    EmbeddedCheckoutMessengerOptions,
-    FlashMessage,
-    Promotion,
-    RequestOptions,
+  Address,
+  Cart,
+  CartChangedError,
+  CheckoutParams,
+  CheckoutSelectors,
+  Consignment,
+  EmbeddedCheckoutMessenger,
+  EmbeddedCheckoutMessengerOptions,
+  FlashMessage,
+  Promotion,
+  RequestOptions,
 } from '@bigcommerce/checkout-sdk';
 import classNames from 'classnames';
+import { Helmet } from 'react-helmet';
 import { find, findIndex } from 'lodash';
 import React, { Component, lazy, ReactNode } from 'react';
 
@@ -28,12 +30,12 @@ import { withCheckout } from '../checkout';
 import { CustomError, ErrorModal, isCustomError } from '../common/error';
 import { retry } from '../common/utility';
 import {
-    CheckoutButtonContainer,
-    CheckoutSuggestion,
-    Customer,
-    CustomerInfo,
-    CustomerSignOutEvent,
-    CustomerViewType,
+  CheckoutButtonContainer,
+  CheckoutSuggestion,
+  Customer,
+  CustomerInfo,
+  CustomerSignOutEvent,
+  CustomerViewType,
 } from '../customer';
 import { EmbeddedCheckoutStylesheet, isEmbedded } from '../embeddedCheckout';
 import { PromotionBannerList } from '../promotion';
@@ -49,711 +51,918 @@ import CheckoutSupport from './CheckoutSupport';
 import mapToCheckoutProps from './mapToCheckoutProps';
 import navigateToOrderConfirmation from './navigateToOrderConfirmation';
 
+import {
+  CardComponent,
+  CardNumber,
+  CardExpiry,
+  CardCVV,
+} from '@chargebee/chargebee-js-react-wrapper';
+import '../../scss/components/checkout/chargebee/payments.scss';
+import ChargebeeComponents from '@chargebee/chargebee-js-react-wrapper/dist/components/ComponentGroup';
+
 const Billing = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "billing" */
-                '../billing/Billing'
-            ),
-    ),
+  retry(
+    () =>
+      import(
+        /* webpackChunkName: "billing" */
+        '../billing/Billing'
+      ),
+  ),
 );
 
 const CartSummary = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "cart-summary" */
-                '../cart/CartSummary'
-            ),
-    ),
+  retry(
+    () =>
+      import(
+        /* webpackChunkName: "cart-summary" */
+        '../cart/CartSummary'
+      ),
+  ),
 );
 
 const CartSummaryDrawer = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "cart-summary-drawer" */
-                '../cart/CartSummaryDrawer'
-            ),
-    ),
+  retry(
+    () =>
+      import(
+        /* webpackChunkName: "cart-summary-drawer" */
+        '../cart/CartSummaryDrawer'
+      ),
+  ),
 );
 
 const Payment = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "payment" */
-                '../payment/Payment'
-            ),
-    ),
+  retry(
+    () =>
+      import(
+        /* webpackChunkName: "payment" */
+        '../payment/Payment'
+      ),
+  ),
 );
 
 const Shipping = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "shipping" */
-                '../shipping/Shipping'
-            ),
-    ),
+  retry(
+    () =>
+      import(
+        /* webpackChunkName: "shipping" */
+        '../shipping/Shipping'
+      ),
+  ),
 );
 
 export interface CheckoutProps {
-    checkoutId: string;
-    containerId: string;
-    embeddedStylesheet: EmbeddedCheckoutStylesheet;
-    embeddedSupport: CheckoutSupport;
-    errorLogger: ErrorLogger;
-    createEmbeddedMessenger(options: EmbeddedCheckoutMessengerOptions): EmbeddedCheckoutMessenger;
+  checkoutId: string;
+  containerId: string;
+  embeddedStylesheet: EmbeddedCheckoutStylesheet;
+  embeddedSupport: CheckoutSupport;
+  errorLogger: ErrorLogger;
+  createEmbeddedMessenger(options: EmbeddedCheckoutMessengerOptions): EmbeddedCheckoutMessenger;
 }
 
 export interface CheckoutState {
-    activeStepType?: CheckoutStepType;
-    isBillingSameAsShipping: boolean;
-    customerViewType?: CustomerViewType;
-    defaultStepType?: CheckoutStepType;
-    error?: Error;
-    flashMessages?: FlashMessage[];
-    isMultiShippingMode: boolean;
-    isCartEmpty: boolean;
-    isRedirecting: boolean;
-    hasSelectedShippingOptions: boolean;
-    isHidingStepNumbers: boolean;
-    isSubscribed: boolean;
+  activeStepType?: CheckoutStepType | undefined;
+  isBillingSameAsShipping: boolean;
+  customerViewType?: CustomerViewType | undefined;
+  defaultStepType?: CheckoutStepType | undefined;
+  error?: Error;
+  flashMessages?: FlashMessage[];
+  isMultiShippingMode: boolean;
+  isCartEmpty: boolean;
+  isRedirecting: boolean;
+  hasSelectedShippingOptions: boolean;
+  isHidingStepNumbers: boolean;
+  isSubscribed: boolean;
+  token: String;
+  loading: boolean;
+  firstName: String;
+  options: {
+    // Custom classes - applied on container elements based on field's state
+    classes: {
+      focus: 'focus';
+      invalid: 'invalid';
+      empty: 'empty';
+      complete: 'complete';
+    };
+
+    style: {
+      // Styles for default field state
+      base: {
+        color: '#333';
+        fontWeight: '500';
+        fontFamily: 'Roboto, Segoe UI, Helvetica Neue, sans-serif';
+        fontSize: '16px';
+        fontSmoothing: 'antialiased';
+
+        ':focus': {
+          color: '#424770';
+        };
+
+        '::placeholder': {
+          color: 'transparent';
+        };
+
+        ':focus::placeholder': {
+          color: '#7b808c';
+        };
+
+        ':-webkit-autofill': {
+          webkitTextColor: '#333';
+        };
+      };
+
+      // Styles for invalid field state
+      invalid: {
+        color: '#e41029';
+
+        ':focus': {
+          color: '#e44d5f';
+        };
+        '::placeholder': {
+          color: '#FFCCA5';
+        };
+      };
+    };
+
+    // locale
+    locale: 'en';
+
+    // Custom placeholders
+    placeholder: {
+      number: '4111 1111 1111 1111';
+      expiry: 'MM / YY';
+      cvv: 'CVV';
+    };
+
+    // Custom fonts
+    fonts: ['https://fonts.googleapis.com/css?family=Roboto:300,500,600'];
+  };
 }
 
 export interface WithCheckoutProps {
-    billingAddress?: Address;
-    cart?: Cart;
-    consignments?: Consignment[];
-    error?: Error;
-    hasCartChanged: boolean;
-    flashMessages?: FlashMessage[];
-    isGuestEnabled: boolean;
-    isLoadingCheckout: boolean;
-    isPending: boolean;
-    isPriceHiddenFromGuests: boolean;
-    isShowingWalletButtonsOnTop: boolean;
-    loginUrl: string;
-    cartUrl: string;
-    createAccountUrl: string;
-    canCreateAccountInCheckout: boolean;
-    promotions?: Promotion[];
-    steps: CheckoutStepStatus[];
-    clearError(error?: Error): void;
-    loadCheckout(id: string, options?: RequestOptions<CheckoutParams>): Promise<CheckoutSelectors>;
-    subscribeToConsignments(subscriber: (state: CheckoutSelectors) => void): () => void;
+  billingAddress?: Address;
+  cart?: Cart;
+  consignments?: Consignment[];
+  error?: Error;
+  hasCartChanged: boolean;
+  flashMessages?: FlashMessage[];
+  isGuestEnabled: boolean;
+  isLoadingCheckout: boolean;
+  isPending: boolean;
+  isPriceHiddenFromGuests: boolean;
+  isShowingWalletButtonsOnTop: boolean;
+  loginUrl: string;
+  cartUrl: string;
+  createAccountUrl: string;
+  canCreateAccountInCheckout: boolean;
+  promotions?: Promotion[];
+  steps: CheckoutStepStatus[];
+  clearError(error?: Error): void;
+  loadCheckout(id: string, options?: RequestOptions<CheckoutParams>): Promise<CheckoutSelectors>;
+  subscribeToConsignments(subscriber: (state: CheckoutSelectors) => void): () => void;
 }
 
 class Checkout extends Component<
-    CheckoutProps &
-        WithCheckoutProps &
-        WithLanguageProps &
-        AnalyticsContextProps &
-        ExtensionContextProps,
-    CheckoutState
+  CheckoutProps &
+    WithCheckoutProps &
+    WithLanguageProps &
+    AnalyticsContextProps &
+    ExtensionContextProps,
+  CheckoutState
 > {
-    state: CheckoutState = {
-        isBillingSameAsShipping: true,
-        isCartEmpty: false,
-        isRedirecting: false,
-        isMultiShippingMode: false,
-        hasSelectedShippingOptions: false,
-        isHidingStepNumbers: true,
-        isSubscribed: false,
-    };
+  state = {
+    activeStepType: undefined,
+    defaultStepType: undefined,
+    customerViewType: undefined,
+    isBillingSameAsShipping: true,
+    isCartEmpty: false,
+    isRedirecting: false,
+    isMultiShippingMode: false,
+    hasSelectedShippingOptions: false,
+    isHidingStepNumbers: true,
+    isSubscribed: false,
+    token: '',
+    error: new Error(),
+    loading: false,
+    firstName: '',
+    options: {
+      // Custom classes - applied on container elements based on field's state
+      classes: {
+        focus: 'focus',
+        invalid: 'invalid',
+        empty: 'empty',
+        complete: 'complete',
+      },
 
-    private embeddedMessenger?: EmbeddedCheckoutMessenger;
-    private unsubscribeFromConsignments?: () => void;
+      style: {
+        // Styles for default field state
+        base: {
+          color: '#333',
+          fontWeight: '500',
+          fontFamily: 'Roboto, Segoe UI, Helvetica Neue, sans-serif',
+          fontSize: '16px',
+          fontSmoothing: 'antialiased',
 
-    componentWillUnmount(): void {
-        if (this.unsubscribeFromConsignments) {
-            this.unsubscribeFromConsignments();
-            this.unsubscribeFromConsignments = undefined;
-        }
+          ':focus': {
+            color: '#424770',
+          },
 
-        window.removeEventListener('beforeunload', this.handleBeforeExit);
-        this.handleBeforeExit();
-    }
+          '::placeholder': {
+            color: 'transparent',
+          },
 
-    async componentDidMount(): Promise<void> {
-        const {
-            analyticsTracker,
-            checkoutId,
-            containerId,
-            createEmbeddedMessenger,
-            embeddedStylesheet,
-            extensionService,
-            loadCheckout,
-            subscribeToConsignments,
-            isExtensionEnabled,
-        } = this.props;
+          ':focus::placeholder': {
+            color: '#7b808c',
+          },
 
-        try {
-            const { data } = await loadCheckout(checkoutId, {
-                params: {
-                    include: [
-                        'cart.lineItems.physicalItems.categoryNames',
-                        'cart.lineItems.digitalItems.categoryNames',
-                    ] as any, // FIXME: Currently the enum is not exported so it can't be used here.
-                },
-            });
-            const { links: { siteLink = '' } = {} } = data.getConfig() || {};
-            const errorFlashMessages = data.getFlashMessages('error') || [];
+          ':-webkit-autofill': {
+            webkitTextColor: '#333',
+          },
+        },
 
-            if (errorFlashMessages.length) {
-                const { language } = this.props;
+        // Styles for invalid field state
+        invalid: {
+          color: '#e41029',
 
-                this.setState({
-                    error: new CustomError({
-                        title:
-                            errorFlashMessages[0].title ||
-                            language.translate('common.error_heading'),
-                        message: errorFlashMessages[0].message,
-                        data: {},
-                        name: 'default',
-                    }),
-                });
-            }
+          ':focus': {
+            color: '#e44d5f',
+          },
+          '::placeholder': {
+            color: '#FFCCA5',
+          },
+        },
+      },
 
-            const messenger = createEmbeddedMessenger({ parentOrigin: siteLink });
+      // locale
+      locale: 'en',
 
-            this.unsubscribeFromConsignments = subscribeToConsignments(
-                this.handleConsignmentsUpdated,
-            );
-            this.embeddedMessenger = messenger;
-            messenger.receiveStyles((styles) => embeddedStylesheet.append(styles));
-            messenger.postFrameLoaded({ contentId: containerId });
-            messenger.postLoaded();
+      // Custom placeholders
+      placeholder: {
+        number: '4111 1111 1111 1111',
+        expiry: 'MM / YY',
+        cvv: 'CVV',
+      },
 
-            analyticsTracker.checkoutBegin();
+      // Custom fonts
+      fonts: ['https://fonts.googleapis.com/css?family=Roboto:300,500,600'],
+    },
+  };
 
-            const consignments = data.getConsignments();
-            const cart = data.getCart();
+  private cardRef = React.createRef<ChargebeeComponents>();
 
-            const hasMultiShippingEnabled =
-                data.getConfig()?.checkoutSettings.hasMultiShippingEnabled;
-            const checkoutBillingSameAsShippingEnabled =
-                data.getConfig()?.checkoutSettings.checkoutBillingSameAsShippingEnabled ?? true;
-            const removeStepNumbersFlag =
-              data.getConfig()?.checkoutSettings.features['CHECKOUT-7255.remove_checkout_step_numbers'] ??
-              false;
-            const defaultNewsletterSignupOption =
-                data.getConfig()?.shopperConfig.defaultNewsletterSignup ??
-                false;
-            const isMultiShippingMode =
-                !!cart &&
-                !!consignments &&
-                hasMultiShippingEnabled &&
-                isUsingMultiShipping(consignments, cart.lineItems);
+  tokenize(): void {
+    this.setState({ loading: true });
 
-            this.setState({
-                isBillingSameAsShipping: checkoutBillingSameAsShippingEnabled,
-                isHidingStepNumbers: removeStepNumbersFlag,
-                isSubscribed: defaultNewsletterSignupOption,
-            });
-
-            if (isMultiShippingMode) {
-                this.setState({ isMultiShippingMode }, this.handleReady);
-            } else {
-                this.handleReady();
-            }
-
-            window.addEventListener('beforeunload', this.handleBeforeExit);
-
-            if (isExtensionEnabled()) {
-                await extensionService.loadExtensions();
-            }
-        } catch (error) {
-            if (error instanceof Error) {
-                this.handleUnhandledError(error);
-            }
-        }
-    }
-
-    render(): ReactNode {
-        const { error, isHidingStepNumbers } = this.state;
-        let errorModal = null;
-
-        if (error) {
-            if (isCustomError(error)) {
-                errorModal = (
-                    <ErrorModal
-                        error={error}
-                        onClose={this.handleCloseErrorModal}
-                        title={error.title}
-                    />
-                );
-            } else {
-                errorModal = <ErrorModal error={error} onClose={this.handleCloseErrorModal} />;
-            }
-        }
-
-        return (
-            <div className={classNames({ 'is-embedded': isEmbedded(), 'remove-checkout-step-numbers': isHidingStepNumbers })}>
-                <div className="layout optimizedCheckout-contentPrimary">
-                    {this.renderContent()}
-                </div>
-                {errorModal}
-            </div>
-        );
-    }
-
-    private renderContent(): ReactNode {
-        const { isPending, loginUrl, promotions = [], steps, isShowingWalletButtonsOnTop, extensionState } = this.props;
-
-        const { activeStepType, defaultStepType, isCartEmpty, isRedirecting } = this.state;
-
-        if (isCartEmpty) {
-            return <EmptyCartMessage loginUrl={loginUrl} waitInterval={3000} />;
-        }
-
-        const isPaymentStepActive = activeStepType
-            ? activeStepType === CheckoutStepType.Payment
-            : defaultStepType === CheckoutStepType.Payment;
-
-        return (
-            <LoadingOverlay hideContentWhenLoading isLoading={isRedirecting}>
-                <div className="layout-main">
-                    <LoadingNotification isLoading={(!isShowingWalletButtonsOnTop && isPending) || extensionState.isShowingLoadingIndicator} />
-
-                    <PromotionBannerList promotions={promotions} />
-
-                    {isShowingWalletButtonsOnTop && (
-                        <CheckoutButtonContainer
-                            checkEmbeddedSupport={this.checkEmbeddedSupport}
-                            isPaymentStepActive={isPaymentStepActive}
-                            onUnhandledError={this.handleUnhandledError}
-                        />
-                    )}
-
-                    <ol className="checkout-steps">
-                        {steps
-                            .filter((step) => step.isRequired)
-                            .map((step) =>
-                                this.renderStep({
-                                    ...step,
-                                    isActive: activeStepType
-                                        ? activeStepType === step.type
-                                        : defaultStepType === step.type,
-                                    isBusy: isPending,
-                                }),
-                            )}
-                    </ol>
-                </div>
-
-                {this.renderCartSummary()}
-            </LoadingOverlay>
-        );
-    }
-
-    private renderStep(step: CheckoutStepStatus): ReactNode {
-        switch (step.type) {
-            case CheckoutStepType.Customer:
-                return this.renderCustomerStep(step);
-
-            case CheckoutStepType.Shipping:
-                return this.renderShippingStep(step);
-
-            case CheckoutStepType.Billing:
-                return this.renderBillingStep(step);
-
-            case CheckoutStepType.Payment:
-                return this.renderPaymentStep(step);
-
-            default:
-                return null;
-        }
-    }
-
-    private renderCustomerStep(step: CheckoutStepStatus): ReactNode {
-        const { isGuestEnabled, isShowingWalletButtonsOnTop } = this.props;
-        const {
-            customerViewType = isGuestEnabled ? CustomerViewType.Guest : CustomerViewType.Login,
-            isSubscribed,
-        } = this.state;
-
-        return (
-            <CheckoutStep
-                {...step}
-                heading={<TranslatedString id="customer.customer_heading" />}
-                key={step.type}
-                onEdit={this.handleEditStep}
-                onExpanded={this.handleExpanded}
-                suggestion={<CheckoutSuggestion />}
-                summary={
-                    <CustomerInfo
-                        onSignOut={this.handleSignOut}
-                        onSignOutError={this.handleError}
-                    />
-                }
-            >
-                <Customer
-                    checkEmbeddedSupport={this.checkEmbeddedSupport}
-                    isEmbedded={isEmbedded()}
-                    isSubscribed={isSubscribed}
-                    isWalletButtonsOnTop = {isShowingWalletButtonsOnTop }
-                    onAccountCreated={this.navigateToNextIncompleteStep}
-                    onChangeViewType={this.setCustomerViewType}
-                    onContinueAsGuest={this.navigateToNextIncompleteStep}
-                    onContinueAsGuestError={this.handleError}
-                    onReady={this.handleReady}
-                    onSignIn={this.navigateToNextIncompleteStep}
-                    onSignInError={this.handleError}
-                    onSubscribeToNewsletter={this.handleNewsletterSubscription}
-                    onUnhandledError={this.handleUnhandledError}
-                    step={step}
-                    viewType={customerViewType}
-                />
-            </CheckoutStep>
-        );
-    }
-
-    private renderShippingStep(step: CheckoutStepStatus): ReactNode {
-        const { hasCartChanged, cart, consignments = [] } = this.props;
-
-        const { isBillingSameAsShipping, isMultiShippingMode } = this.state;
-
-        if (!cart) {
-            return;
-        }
-
-        return (
-            <CheckoutStep
-                {...step}
-                heading={<TranslatedString id="shipping.shipping_heading" />}
-                key={step.type}
-                onEdit={this.handleEditStep}
-                onExpanded={this.handleExpanded}
-                summary={consignments.map((consignment) => (
-                    <div className="staticConsignmentContainer" key={consignment.id}>
-                        <StaticConsignment
-                            cart={cart}
-                            compactView={consignments.length < 2}
-                            consignment={consignment}
-                        />
-                    </div>
-                ))}
-            >
-                <LazyContainer loadingSkeleton={<AddressFormSkeleton />}>
-                    <Shipping
-                        cartHasChanged={hasCartChanged}
-                        isBillingSameAsShipping={isBillingSameAsShipping}
-                        isMultiShippingMode={isMultiShippingMode}
-                        navigateNextStep={this.handleShippingNextStep}
-                        onCreateAccount={this.handleShippingCreateAccount}
-                        onReady={this.handleReady}
-                        onSignIn={this.handleShippingSignIn}
-                        onToggleMultiShipping={this.handleToggleMultiShipping}
-                        onUnhandledError={this.handleUnhandledError}
-                        step={step}
-                    />
-                </LazyContainer>
-            </CheckoutStep>
-        );
-    }
-
-    private renderBillingStep(step: CheckoutStepStatus): ReactNode {
-        const { billingAddress } = this.props;
-
-        return (
-            <CheckoutStep
-                {...step}
-                heading={<TranslatedString id="billing.billing_heading" />}
-                key={step.type}
-                onEdit={this.handleEditStep}
-                onExpanded={this.handleExpanded}
-                summary={billingAddress && <StaticBillingAddress address={billingAddress} />}
-            >
-                <LazyContainer loadingSkeleton={<AddressFormSkeleton />}>
-                    <Billing
-                        navigateNextStep={this.navigateToNextIncompleteStep}
-                        onReady={this.handleReady}
-                        onUnhandledError={this.handleUnhandledError}
-                    />
-                </LazyContainer>
-            </CheckoutStep>
-        );
-    }
-
-    private renderPaymentStep(step: CheckoutStepStatus): ReactNode {
-        const { consignments, cart, errorLogger } = this.props;
-
-        return (
-            <CheckoutStep
-                {...step}
-                heading={<TranslatedString id="payment.payment_heading" />}
-                key={step.type}
-                onEdit={this.handleEditStep}
-                onExpanded={this.handleExpanded}
-            >
-                <LazyContainer loadingSkeleton={<ChecklistSkeleton />}>
-                    <Payment
-                        checkEmbeddedSupport={this.checkEmbeddedSupport}
-                        errorLogger={errorLogger}
-                        isEmbedded={isEmbedded()}
-                        isUsingMultiShipping={
-                            cart && consignments
-                                ? isUsingMultiShipping(consignments, cart.lineItems)
-                                : false
-                        }
-                        onCartChangedError={this.handleCartChangedError}
-                        onFinalize={this.navigateToOrderConfirmation}
-                        onReady={this.handleReady}
-                        onSubmit={this.navigateToOrderConfirmation}
-                        onSubmitError={this.handleError}
-                        onUnhandledError={this.handleUnhandledError}
-                    />
-                </LazyContainer>
-            </CheckoutStep>
-        );
-    }
-
-    private renderCartSummary(): ReactNode {
-        return (
-            <MobileView>
-                {(matched) => {
-                    if (matched) {
-                        return (
-                            <LazyContainer>
-                                <CartSummaryDrawer />
-                            </LazyContainer>
-                        );
-                    }
-
-                    return (
-                        <aside className="layout-cart">
-                            <LazyContainer>
-                                <CartSummary />
-                            </LazyContainer>
-                        </aside>
-                    );
-                }}
-            </MobileView>
-        );
-    }
-
-    private navigateToStep(type: CheckoutStepType, options?: { isDefault?: boolean }): void {
-        const { clearError, error, steps } = this.props;
-        const { activeStepType } = this.state;
-        const step = find(steps, { type });
-
-        if (!step) {
-            return;
-        }
-
-        if (activeStepType === step.type) {
-            return;
-        }
-
-        if (options && options.isDefault) {
-            this.setState({ defaultStepType: step.type });
-        } else {
-            this.setState({ activeStepType: step.type });
-        }
-
-        if (error) {
-            clearError(error);
-        }
-    }
-
-    private handleToggleMultiShipping: () => void = () => {
-        const { isMultiShippingMode } = this.state;
-
-        this.setState({ isMultiShippingMode: !isMultiShippingMode });
-    };
-
-    private navigateToNextIncompleteStep: (options?: { isDefault?: boolean }) => void = (
-        options,
-    ) => {
-        const { steps, analyticsTracker } = this.props;
-        const activeStepIndex = findIndex(steps, { isActive: true });
-        const activeStep = activeStepIndex >= 0 && steps[activeStepIndex];
-
-        if (!activeStep) {
-            return;
-        }
-
-        const previousStep = steps[Math.max(activeStepIndex - 1, 0)];
-
-        if (previousStep) {
-            analyticsTracker.trackStepCompleted(previousStep.type);
-        }
-
-        this.navigateToStep(activeStep.type, options);
-    };
-
-    private navigateToOrderConfirmation: (orderId?: number) => void = (orderId) => {
-        const { steps, analyticsTracker } = this.props;
-
-        analyticsTracker.trackStepCompleted(steps[steps.length - 1].type);
-
-        if (this.embeddedMessenger) {
-            this.embeddedMessenger.postComplete();
-        }
-
-        this.setState({ isRedirecting: true }, () => {
-            navigateToOrderConfirmation(orderId);
+    // Call tokenize methods through  card component's ref
+    this.cardRef?.current
+      ?.tokenize({})
+      .then((data: any) => {
+        this.setState({ loading: false, token: data.token });
+      })
+      .catch(() => {
+        this.setState({
+          loading: false,
+          token: '',
+          error: new Error('Problem while tokenizing your card details'),
         });
-    };
+      });
+  }
 
-    private checkEmbeddedSupport: (methodIds: string[]) => boolean = (methodIds) => {
-        const { embeddedSupport } = this.props;
+  handleChange(event: any): void {
+    const target = event.target;
+    const value = target.type === 'checkbox' ? target.checked : target.value;
+    const name = target.name;
 
-        return embeddedSupport.isSupported(...methodIds);
-    };
+    this.setState({
+      [name]: value,
+    });
+  }
 
-    private handleCartChangedError: (error: CartChangedError) => void = () => {
-        this.navigateToStep(CheckoutStepType.Shipping);
-    };
+  private embeddedMessenger?: EmbeddedCheckoutMessenger;
+  private unsubscribeFromConsignments?: () => void;
 
-    private handleConsignmentsUpdated: (state: CheckoutSelectors) => void = ({ data }) => {
-        const { hasSelectedShippingOptions: prevHasSelectedShippingOptions, activeStepType, defaultStepType } =
-            this.state;
+  componentWillUnmount(): void {
+    if (this.unsubscribeFromConsignments) {
+      this.unsubscribeFromConsignments();
+      this.unsubscribeFromConsignments = undefined;
+    }
 
-        const { steps } = this.props;
+    window.removeEventListener('beforeunload', this.handleBeforeExit);
+    this.handleBeforeExit();
+  }
 
-        const newHasSelectedShippingOptions = hasSelectedShippingOptions(
-            data.getConsignments() || [],
+  async componentDidMount(): Promise<void> {
+    const {
+      analyticsTracker,
+      checkoutId,
+      containerId,
+      createEmbeddedMessenger,
+      embeddedStylesheet,
+      extensionService,
+      loadCheckout,
+      subscribeToConsignments,
+      isExtensionEnabled,
+    } = this.props;
+
+    try {
+      const { data } = await loadCheckout(checkoutId, {
+        params: {
+          include: [
+            'cart.lineItems.physicalItems.categoryNames',
+            'cart.lineItems.digitalItems.categoryNames',
+          ] as any, // FIXME: Currently the enum is not exported so it can't be used here.
+        },
+      });
+      const { links: { siteLink = '' } = {} } = data.getConfig() || {};
+      const errorFlashMessages = data.getFlashMessages('error') || [];
+
+      if (errorFlashMessages.length) {
+        const { language } = this.props;
+
+        this.setState({
+          error: new CustomError({
+            title: errorFlashMessages[0].title || language.translate('common.error_heading'),
+            message: errorFlashMessages[0].message,
+            data: {},
+            name: 'default',
+          }),
+        });
+      }
+
+      const messenger = createEmbeddedMessenger({ parentOrigin: siteLink });
+
+      this.unsubscribeFromConsignments = subscribeToConsignments(this.handleConsignmentsUpdated);
+      this.embeddedMessenger = messenger;
+      messenger.receiveStyles((styles) => embeddedStylesheet.append(styles));
+      messenger.postFrameLoaded({ contentId: containerId });
+      messenger.postLoaded();
+
+      analyticsTracker.checkoutBegin();
+
+      const consignments = data.getConsignments();
+      const cart = data.getCart();
+
+      const hasMultiShippingEnabled = data.getConfig()?.checkoutSettings.hasMultiShippingEnabled;
+      const checkoutBillingSameAsShippingEnabled =
+        data.getConfig()?.checkoutSettings.checkoutBillingSameAsShippingEnabled ?? true;
+      const removeStepNumbersFlag =
+        data.getConfig()?.checkoutSettings.features['CHECKOUT-7255.remove_checkout_step_numbers'] ??
+        false;
+      const defaultNewsletterSignupOption =
+        data.getConfig()?.shopperConfig.defaultNewsletterSignup ?? false;
+      const isMultiShippingMode =
+        !!cart &&
+        !!consignments &&
+        hasMultiShippingEnabled &&
+        isUsingMultiShipping(consignments, cart.lineItems);
+
+      this.setState({
+        isBillingSameAsShipping: checkoutBillingSameAsShippingEnabled,
+        isHidingStepNumbers: removeStepNumbersFlag,
+        isSubscribed: defaultNewsletterSignupOption,
+      });
+
+      if (isMultiShippingMode) {
+        this.setState({ isMultiShippingMode }, this.handleReady);
+      } else {
+        this.handleReady();
+      }
+
+      window.addEventListener('beforeunload', this.handleBeforeExit);
+
+      if (isExtensionEnabled()) {
+        await extensionService.loadExtensions();
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        this.handleUnhandledError(error);
+      }
+    }
+  }
+
+  render(): ReactNode {
+    const { error, isHidingStepNumbers } = this.state;
+    let errorModal = null;
+
+    if (error) {
+      if (isCustomError(error)) {
+        errorModal = (
+          <ErrorModal error={error} onClose={this.handleCloseErrorModal} title={error?.title} />
         );
-
-        const isDefaultStepPaymentOrBilling =
-            !activeStepType &&
-            (defaultStepType === CheckoutStepType.Payment ||
-                defaultStepType === CheckoutStepType.Billing);
-
-        const isShippingStepFinished =
-            findIndex(steps, { type: CheckoutStepType.Shipping }) <
-                findIndex(steps, { type: activeStepType }) || isDefaultStepPaymentOrBilling;
-
-        if (
-            prevHasSelectedShippingOptions &&
-            !newHasSelectedShippingOptions &&
-            isShippingStepFinished
-        ) {
-            this.navigateToStep(CheckoutStepType.Shipping);
-            this.setState({ error: new ShippingOptionExpiredError() });
-        }
-
-        this.setState({ hasSelectedShippingOptions: newHasSelectedShippingOptions });
-    };
-
-    private handleCloseErrorModal: () => void = () => {
-        this.setState({ error: undefined });
-    };
-
-    private handleExpanded: (type: CheckoutStepType) => void = (type) => {
-        const { analyticsTracker } = this.props;
-
-        analyticsTracker.trackStepViewed(type);
-    };
-
-    private handleUnhandledError: (error: Error) => void = (error) => {
-        this.handleError(error);
-
-        // For errors that are not caught and handled by child components, we
-        // handle them here by displaying a generic error modal to the shopper.
-        this.setState({ error });
-    };
-
-    private handleError: (error: Error) => void = (error) => {
-        const { errorLogger } = this.props;
-
-        errorLogger.log(error);
-
-        if (this.embeddedMessenger) {
-            this.embeddedMessenger.postError(error);
-        }
-    };
-
-    private handleEditStep: (type: CheckoutStepType) => void = (type) => {
-        this.navigateToStep(type);
-    };
-
-    private handleReady: () => void = () => {
-        this.navigateToNextIncompleteStep({ isDefault: true });
-    };
-
-    private handleNewsletterSubscription: (subscribed: boolean) => void = (subscribed) => {
-        this.setState({ isSubscribed: subscribed });
+      } else {
+        errorModal = <ErrorModal error={error} onClose={this.handleCloseErrorModal} />;
+      }
     }
 
-    private handleSignOut: (event: CustomerSignOutEvent) => void = ({ isCartEmpty }) => {
-        const { loginUrl, cartUrl, isPriceHiddenFromGuests, isGuestEnabled } = this.props;
+    return (
+      <div
+        className={classNames({
+          'is-embedded': isEmbedded(),
+          'remove-checkout-step-numbers': isHidingStepNumbers,
+        })}
+      >
+        <div className="layout optimizedCheckout-contentPrimary">{this.renderContent()}</div>
+        {errorModal}
+      </div>
+    );
+  }
 
-        if (isPriceHiddenFromGuests) {
-            if (window.top) {
-                return (window.top.location.href = cartUrl);
-            }
-        }
+  private renderContent(): ReactNode {
+    const {
+      isPending,
+      loginUrl,
+      promotions = [],
+      steps,
+      isShowingWalletButtonsOnTop,
+      extensionState,
+    } = this.props;
 
-        if (this.embeddedMessenger) {
-            this.embeddedMessenger.postSignedOut();
-        }
+    const { activeStepType, defaultStepType, isCartEmpty, isRedirecting } = this.state;
 
-        if (isGuestEnabled) {
-            this.setCustomerViewType(CustomerViewType.Guest);
-        }
-
-        if (isCartEmpty) {
-            this.setState({ isCartEmpty: true });
-
-            if (!isEmbedded()) {
-                if (window.top) {
-                    return window.top.location.assign(loginUrl);
-                }
-            }
-        }
-
-        this.navigateToStep(CheckoutStepType.Customer);
-    };
-
-    private handleShippingNextStep: (isBillingSameAsShipping: boolean) => void = (
-        isBillingSameAsShipping,
-    ) => {
-        this.setState({ isBillingSameAsShipping });
-
-        if (isBillingSameAsShipping) {
-            this.navigateToNextIncompleteStep();
-        } else {
-            this.navigateToStep(CheckoutStepType.Billing);
-        }
-    };
-
-    private handleShippingSignIn: () => void = () => {
-        this.setCustomerViewType(CustomerViewType.Login);
-    };
-
-    private handleShippingCreateAccount: () => void = () => {
-        this.setCustomerViewType(CustomerViewType.CreateAccount);
-    };
-
-    private setCustomerViewType: (viewType: CustomerViewType) => void = (customerViewType) => {
-        const { canCreateAccountInCheckout, createAccountUrl } = this.props;
-
-        if (
-            customerViewType === CustomerViewType.CreateAccount &&
-            (!canCreateAccountInCheckout || isEmbedded())
-        ) {
-            if (window.top) {
-                window.top.location.replace(createAccountUrl);
-            }
-
-            return;
-        }
-
-        this.navigateToStep(CheckoutStepType.Customer);
-        this.setState({ customerViewType });
-    };
-
-    private handleBeforeExit: () => void = () => {
-        const { analyticsTracker } = this.props;
-
-        analyticsTracker.exitCheckout();
+    if (isCartEmpty) {
+      return <EmptyCartMessage loginUrl={loginUrl} waitInterval={3000} />;
     }
+
+    const isPaymentStepActive = activeStepType
+      ? activeStepType === CheckoutStepType.Payment
+      : defaultStepType === CheckoutStepType.Payment;
+
+    return (
+      <LoadingOverlay hideContentWhenLoading isLoading={isRedirecting}>
+        <div className="layout-main">
+          <LoadingNotification
+            isLoading={
+              (!isShowingWalletButtonsOnTop && isPending) ||
+              extensionState.isShowingLoadingIndicator
+            }
+          />
+
+          <PromotionBannerList promotions={promotions} />
+
+          {isShowingWalletButtonsOnTop && (
+            <CheckoutButtonContainer
+              checkEmbeddedSupport={this.checkEmbeddedSupport}
+              isPaymentStepActive={isPaymentStepActive}
+              onUnhandledError={this.handleUnhandledError}
+            />
+          )}
+
+          <ol className="checkout-steps">
+            {steps
+              .filter((step) => step.isRequired)
+              .map((step) =>
+                this.renderStep({
+                  ...step,
+                  isActive: activeStepType
+                    ? activeStepType === step.type
+                    : defaultStepType === step.type,
+                  isBusy: isPending,
+                }),
+              )}
+          </ol>
+        </div>
+
+        {this.renderCartSummary()}
+      </LoadingOverlay>
+    );
+  }
+
+  private renderStep(step: CheckoutStepStatus): ReactNode {
+    switch (step.type) {
+      case CheckoutStepType.Customer:
+        return this.renderCustomerStep(step);
+
+      case CheckoutStepType.Shipping:
+        return this.renderShippingStep(step);
+
+      case CheckoutStepType.Billing:
+        return this.renderBillingStep(step);
+
+      case CheckoutStepType.Payment:
+        return this.renderPaymentStep(step);
+
+      default:
+        return null;
+    }
+  }
+
+  private renderCustomerStep(step: CheckoutStepStatus): ReactNode {
+    const { isGuestEnabled, isShowingWalletButtonsOnTop } = this.props;
+    const {
+      customerViewType = isGuestEnabled ? CustomerViewType.Guest : CustomerViewType.Login,
+      isSubscribed,
+    } = this.state;
+
+    return (
+      <CheckoutStep
+        {...step}
+        heading={<TranslatedString id="customer.customer_heading" />}
+        key={step.type}
+        onEdit={this.handleEditStep}
+        onExpanded={this.handleExpanded}
+        suggestion={<CheckoutSuggestion />}
+        summary={<CustomerInfo onSignOut={this.handleSignOut} onSignOutError={this.handleError} />}
+      >
+        <Customer
+          checkEmbeddedSupport={this.checkEmbeddedSupport}
+          isEmbedded={isEmbedded()}
+          isSubscribed={isSubscribed}
+          isWalletButtonsOnTop={isShowingWalletButtonsOnTop}
+          onAccountCreated={this.navigateToNextIncompleteStep}
+          onChangeViewType={this.setCustomerViewType}
+          onContinueAsGuest={this.navigateToNextIncompleteStep}
+          onContinueAsGuestError={this.handleError}
+          onReady={this.handleReady}
+          onSignIn={this.navigateToNextIncompleteStep}
+          onSignInError={this.handleError}
+          onSubscribeToNewsletter={this.handleNewsletterSubscription}
+          onUnhandledError={this.handleUnhandledError}
+          step={step}
+          viewType={customerViewType}
+        />
+      </CheckoutStep>
+    );
+  }
+
+  private renderShippingStep(step: CheckoutStepStatus): ReactNode {
+    const { hasCartChanged, cart, consignments = [] } = this.props;
+
+    const { isBillingSameAsShipping, isMultiShippingMode } = this.state;
+
+    if (!cart) {
+      return;
+    }
+
+    return (
+      <CheckoutStep
+        {...step}
+        heading={<TranslatedString id="shipping.shipping_heading" />}
+        key={step.type}
+        onEdit={this.handleEditStep}
+        onExpanded={this.handleExpanded}
+        summary={consignments.map((consignment) => (
+          <div className="staticConsignmentContainer" key={consignment.id}>
+            <StaticConsignment
+              cart={cart}
+              compactView={consignments.length < 2}
+              consignment={consignment}
+            />
+          </div>
+        ))}
+      >
+        <LazyContainer loadingSkeleton={<AddressFormSkeleton />}>
+          <Shipping
+            cartHasChanged={hasCartChanged}
+            isBillingSameAsShipping={isBillingSameAsShipping}
+            isMultiShippingMode={isMultiShippingMode}
+            navigateNextStep={this.handleShippingNextStep}
+            onCreateAccount={this.handleShippingCreateAccount}
+            onReady={this.handleReady}
+            onSignIn={this.handleShippingSignIn}
+            onToggleMultiShipping={this.handleToggleMultiShipping}
+            onUnhandledError={this.handleUnhandledError}
+            step={step}
+          />
+        </LazyContainer>
+      </CheckoutStep>
+    );
+  }
+
+  private renderBillingStep(step: CheckoutStepStatus): ReactNode {
+    const { billingAddress } = this.props;
+
+    return (
+      <CheckoutStep
+        {...step}
+        heading={<TranslatedString id="billing.billing_heading" />}
+        key={step.type}
+        onEdit={this.handleEditStep}
+        onExpanded={this.handleExpanded}
+        summary={billingAddress && <StaticBillingAddress address={billingAddress} />}
+      >
+        <LazyContainer loadingSkeleton={<AddressFormSkeleton />}>
+          <Billing
+            navigateNextStep={this.navigateToNextIncompleteStep}
+            onReady={this.handleReady}
+            onUnhandledError={this.handleUnhandledError}
+          />
+        </LazyContainer>
+      </CheckoutStep>
+    );
+  }
+
+  private renderPaymentStep(step: CheckoutStepStatus): ReactNode {
+    const { consignments, cart, errorLogger } = this.props;
+    const { style, classes, locale, placeholder, fonts } = this.state.options;
+    const cbInstance = window.Chargebee.init({
+      site: 'abc', // your test site
+      publishableKey: 'xyz',
+    });
+
+    return (
+      <CheckoutStep
+        {...step}
+        heading={<TranslatedString id="payment.payment_heading" />}
+        key={step.type}
+        onEdit={this.handleEditStep}
+        onExpanded={this.handleExpanded}
+      >
+        <LazyContainer loadingSkeleton={<ChecklistSkeleton />}>
+          <Payment
+            checkEmbeddedSupport={this.checkEmbeddedSupport}
+            errorLogger={errorLogger}
+            isEmbedded={isEmbedded()}
+            isUsingMultiShipping={
+              cart && consignments ? isUsingMultiShipping(consignments, cart.lineItems) : false
+            }
+            onCartChangedError={this.handleCartChangedError}
+            onFinalize={this.navigateToOrderConfirmation}
+            onReady={this.handleReady}
+            onSubmit={this.navigateToOrderConfirmation}
+            onSubmitError={this.handleError}
+            onUnhandledError={this.handleUnhandledError}
+          />
+        
+                <CardComponent
+                  ref={this.cardRef}
+                  className="fieldset field"
+                  styles={style}
+                  classes={classes}
+                  locale={locale}
+                  placeholder={placeholder}
+                  fonts={fonts}
+                  onKeyPress={(event) => console.log(event)}
+                >
+                  <div className="ex1-field">
+                    {/* Card number component */}
+                    <CardNumber className="ex1-input" />
+                    <label className="ex1-label">Card Number</label>
+                    <i className="ex1-bar"></i>
+                  </div>
+
+                  <div className="ex1-fields">
+                    <div className="ex1-field">
+                      {/* Card expiry component */}
+                      <CardExpiry className="ex1-input" />
+                      <label className="ex1-label">Expiry</label>
+                      <i className="ex1-bar"></i>
+                    </div>
+
+                    <div className="ex1-field">
+                      {/* Card cvv component */}
+                      <CardCVV className="ex1-input" />
+                      <label className="ex1-label">CVC</label>
+                      <i className="ex1-bar"></i>
+                    </div>
+                  </div>
+                </CardComponent>
+        </LazyContainer>
+      </CheckoutStep>
+    );
+  }
+
+  private renderCartSummary(): ReactNode {
+    return (
+      <MobileView>
+        {(matched) => {
+          if (matched) {
+            return (
+              <LazyContainer>
+                <CartSummaryDrawer />
+              </LazyContainer>
+            );
+          }
+
+          return (
+            <aside className="layout-cart">
+              <LazyContainer>
+                <CartSummary />
+              </LazyContainer>
+            </aside>
+          );
+        }}
+      </MobileView>
+    );
+  }
+
+  private navigateToStep(type: CheckoutStepType, options?: { isDefault?: boolean }): void {
+    const { clearError, error, steps } = this.props;
+    const { activeStepType } = this.state;
+    const step = find(steps, { type });
+
+    if (!step) {
+      return;
+    }
+
+    if (activeStepType === step.type) {
+      return;
+    }
+
+    if (options && options.isDefault) {
+      this.setState({ defaultStepType: step.type });
+    } else {
+      this.setState({ activeStepType: step.type });
+    }
+
+    if (error) {
+      clearError(error);
+    }
+  }
+
+  private handleToggleMultiShipping: () => void = () => {
+    const { isMultiShippingMode } = this.state;
+
+    this.setState({ isMultiShippingMode: !isMultiShippingMode });
+  };
+
+  private navigateToNextIncompleteStep: (options?: { isDefault?: boolean }) => void = (options) => {
+    const { steps, analyticsTracker } = this.props;
+    const activeStepIndex = findIndex(steps, { isActive: true });
+    const activeStep = activeStepIndex >= 0 && steps[activeStepIndex];
+
+    if (!activeStep) {
+      return;
+    }
+
+    const previousStep = steps[Math.max(activeStepIndex - 1, 0)];
+
+    if (previousStep) {
+      analyticsTracker.trackStepCompleted(previousStep.type);
+    }
+
+    this.navigateToStep(activeStep.type, options);
+  };
+
+  private navigateToOrderConfirmation: (orderId?: number) => void = (orderId) => {
+    const { steps, analyticsTracker } = this.props;
+
+    analyticsTracker.trackStepCompleted(steps[steps.length - 1].type);
+
+    if (this.embeddedMessenger) {
+      this.embeddedMessenger.postComplete();
+    }
+
+    this.setState({ isRedirecting: true }, () => {
+      navigateToOrderConfirmation(orderId);
+    });
+  };
+
+  private checkEmbeddedSupport: (methodIds: string[]) => boolean = (methodIds) => {
+    const { embeddedSupport } = this.props;
+
+    return embeddedSupport.isSupported(...methodIds);
+  };
+
+  private handleCartChangedError: (error: CartChangedError) => void = () => {
+    this.navigateToStep(CheckoutStepType.Shipping);
+  };
+
+  private handleConsignmentsUpdated: (state: CheckoutSelectors) => void = ({ data }) => {
+    const {
+      hasSelectedShippingOptions: prevHasSelectedShippingOptions,
+      activeStepType,
+      defaultStepType,
+    } = this.state;
+
+    const { steps } = this.props;
+
+    const newHasSelectedShippingOptions = hasSelectedShippingOptions(data.getConsignments() || []);
+
+    const isDefaultStepPaymentOrBilling =
+      !activeStepType &&
+      (defaultStepType === CheckoutStepType.Payment ||
+        defaultStepType === CheckoutStepType.Billing);
+
+    const isShippingStepFinished =
+      findIndex(steps, { type: CheckoutStepType.Shipping }) <
+        findIndex(steps, { type: activeStepType }) || isDefaultStepPaymentOrBilling;
+
+    if (
+      prevHasSelectedShippingOptions &&
+      !newHasSelectedShippingOptions &&
+      isShippingStepFinished
+    ) {
+      this.navigateToStep(CheckoutStepType.Shipping);
+      this.setState({ error: new ShippingOptionExpiredError() });
+    }
+
+    this.setState({ hasSelectedShippingOptions: newHasSelectedShippingOptions });
+  };
+
+  private handleCloseErrorModal: () => void = () => {
+    this.setState({ error: undefined });
+  };
+
+  private handleExpanded: (type: CheckoutStepType) => void = (type) => {
+    const { analyticsTracker } = this.props;
+
+    analyticsTracker.trackStepViewed(type);
+  };
+
+  private handleUnhandledError: (error: Error) => void = (error) => {
+    this.handleError(error);
+
+    // For errors that are not caught and handled by child components, we
+    // handle them here by displaying a generic error modal to the shopper.
+    this.setState({ error });
+  };
+
+  private handleError: (error: Error) => void = (error) => {
+    const { errorLogger } = this.props;
+
+    errorLogger.log(error);
+
+    if (this.embeddedMessenger) {
+      this.embeddedMessenger.postError(error);
+    }
+  };
+
+  private handleEditStep: (type: CheckoutStepType) => void = (type) => {
+    this.navigateToStep(type);
+  };
+
+  private handleReady: () => void = () => {
+    this.navigateToNextIncompleteStep({ isDefault: true });
+  };
+
+  private handleNewsletterSubscription: (subscribed: boolean) => void = (subscribed) => {
+    this.setState({ isSubscribed: subscribed });
+  };
+
+  private handleSignOut: (event: CustomerSignOutEvent) => void = ({ isCartEmpty }) => {
+    const { loginUrl, cartUrl, isPriceHiddenFromGuests, isGuestEnabled } = this.props;
+
+    if (isPriceHiddenFromGuests) {
+      if (window.top) {
+        return (window.top.location.href = cartUrl);
+      }
+    }
+
+    if (this.embeddedMessenger) {
+      this.embeddedMessenger.postSignedOut();
+    }
+
+    if (isGuestEnabled) {
+      this.setCustomerViewType(CustomerViewType.Guest);
+    }
+
+    if (isCartEmpty) {
+      this.setState({ isCartEmpty: true });
+
+      if (!isEmbedded()) {
+        if (window.top) {
+          return window.top.location.assign(loginUrl);
+        }
+      }
+    }
+
+    this.navigateToStep(CheckoutStepType.Customer);
+  };
+
+  private handleShippingNextStep: (isBillingSameAsShipping: boolean) => void = (
+    isBillingSameAsShipping,
+  ) => {
+    this.setState({ isBillingSameAsShipping });
+
+    if (isBillingSameAsShipping) {
+      this.navigateToNextIncompleteStep();
+    } else {
+      this.navigateToStep(CheckoutStepType.Billing);
+    }
+  };
+
+  private handleShippingSignIn: () => void = () => {
+    this.setCustomerViewType(CustomerViewType.Login);
+  };
+
+  private handleShippingCreateAccount: () => void = () => {
+    this.setCustomerViewType(CustomerViewType.CreateAccount);
+  };
+
+  private setCustomerViewType: (viewType: CustomerViewType) => void = (customerViewType) => {
+    const { canCreateAccountInCheckout, createAccountUrl } = this.props;
+
+    if (
+      customerViewType === CustomerViewType.CreateAccount &&
+      (!canCreateAccountInCheckout || isEmbedded())
+    ) {
+      if (window.top) {
+        window.top.location.replace(createAccountUrl);
+      }
+
+      return;
+    }
+
+    this.navigateToStep(CheckoutStepType.Customer);
+    this.setState({ customerViewType });
+  };
+
+  private handleBeforeExit: () => void = () => {
+    const { analyticsTracker } = this.props;
+
+    analyticsTracker.exitCheckout();
+  };
 }
 
 export default withExtension(
-    withAnalytics(withLanguage(withCheckout(mapToCheckoutProps)(Checkout))),
+  withAnalytics(withLanguage(withCheckout(mapToCheckoutProps)(Checkout))),
 );
