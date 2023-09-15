@@ -17,7 +17,7 @@ export default class ChargebeeCheckout extends Component {
     this.cardRef = React.createRef();
     this.cbInstance = window.Chargebee.init({
       site: 'shubham-test',
-      publishableKey: 'test_C6hQkncujNWjbdHai0LG6HpBHhnflcvKd',
+      publishableKey: 'key',
     });
     console.log(this.cbInstance)
     this.state = {
