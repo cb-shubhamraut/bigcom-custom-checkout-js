@@ -1,7 +1,7 @@
 import {
     Address,
     Cart,
-    CartChangedError,
+    // CartChangedError,
     CheckoutParams,
     CheckoutSelectors,
     Consignment,
@@ -42,12 +42,13 @@ import { ShippingOptionExpiredError } from '../shipping/shippingOption';
 import { LazyContainer, LoadingNotification, LoadingOverlay } from '../ui/loading';
 import { MobileView } from '../ui/responsive';
 
+import ChargebeeCheckout from './ChargebeeCheckout';
 import CheckoutStep from './CheckoutStep';
 import CheckoutStepStatus from './CheckoutStepStatus';
 import CheckoutStepType from './CheckoutStepType';
 import CheckoutSupport from './CheckoutSupport';
 import mapToCheckoutProps from './mapToCheckoutProps';
-import navigateToOrderConfirmation from './navigateToOrderConfirmation';
+// import navigateToOrderConfirmation from './navigateToOrderConfirmation';
 
 const Billing = lazy(() =>
     retry(
@@ -79,15 +80,15 @@ const CartSummaryDrawer = lazy(() =>
     ),
 );
 
-const Payment = lazy(() =>
-    retry(
-        () =>
-            import(
-                /* webpackChunkName: "payment" */
-                '../payment/Payment'
-            ),
-    ),
-);
+// const Payment = lazy(() =>
+//     retry(
+//         () =>
+//             import(
+//                 /* webpackChunkName: "payment" */
+//                 '../payment/Payment'
+//             ),
+//     ),
+// );
 
 const Shipping = lazy(() =>
     retry(
@@ -478,7 +479,6 @@ class Checkout extends Component<
     }
 
     private renderPaymentStep(step: CheckoutStepStatus): ReactNode {
-        const { consignments, cart, errorLogger } = this.props;
 
         return (
             <CheckoutStep
@@ -489,22 +489,7 @@ class Checkout extends Component<
                 onExpanded={this.handleExpanded}
             >
                 <LazyContainer loadingSkeleton={<ChecklistSkeleton />}>
-                    <Payment
-                        checkEmbeddedSupport={this.checkEmbeddedSupport}
-                        errorLogger={errorLogger}
-                        isEmbedded={isEmbedded()}
-                        isUsingMultiShipping={
-                            cart && consignments
-                                ? isUsingMultiShipping(consignments, cart.lineItems)
-                                : false
-                        }
-                        onCartChangedError={this.handleCartChangedError}
-                        onFinalize={this.navigateToOrderConfirmation}
-                        onReady={this.handleReady}
-                        onSubmit={this.navigateToOrderConfirmation}
-                        onSubmitError={this.handleError}
-                        onUnhandledError={this.handleUnhandledError}
-                    />
+                    <ChargebeeCheckout />
                 </LazyContainer>
             </CheckoutStep>
         );
@@ -584,19 +569,19 @@ class Checkout extends Component<
         this.navigateToStep(activeStep.type, options);
     };
 
-    private navigateToOrderConfirmation: (orderId?: number) => void = (orderId) => {
-        const { steps, analyticsTracker } = this.props;
+    // private navigateToOrderConfirmation: (orderId?: number) => void = (orderId) => {
+    //     const { steps, analyticsTracker } = this.props;
 
-        analyticsTracker.trackStepCompleted(steps[steps.length - 1].type);
+    //     analyticsTracker.trackStepCompleted(steps[steps.length - 1].type);
 
-        if (this.embeddedMessenger) {
-            this.embeddedMessenger.postComplete();
-        }
+    //     if (this.embeddedMessenger) {
+    //         this.embeddedMessenger.postComplete();
+    //     }
 
-        this.setState({ isRedirecting: true }, () => {
-            navigateToOrderConfirmation(orderId);
-        });
-    };
+    //     this.setState({ isRedirecting: true }, () => {
+    //         navigateToOrderConfirmation(orderId);
+    //     });
+    // };
 
     private checkEmbeddedSupport: (methodIds: string[]) => boolean = (methodIds) => {
         const { embeddedSupport } = this.props;
@@ -604,9 +589,9 @@ class Checkout extends Component<
         return embeddedSupport.isSupported(...methodIds);
     };
 
-    private handleCartChangedError: (error: CartChangedError) => void = () => {
-        this.navigateToStep(CheckoutStepType.Shipping);
-    };
+    // private handleCartChangedError: (error: CartChangedError) => void = () => {
+    //     this.navigateToStep(CheckoutStepType.Shipping);
+    // };
 
     private handleConsignmentsUpdated: (state: CheckoutSelectors) => void = ({ data }) => {
         const { hasSelectedShippingOptions: prevHasSelectedShippingOptions, activeStepType, defaultStepType } =
