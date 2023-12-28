@@ -6,6 +6,19 @@ import {
 } from '@chargebee/chargebee-js-react-wrapper';
 import React, { Component } from 'react';
 import '../../scss/components/checkout/chargebee/ChargebeeCheckout.scss';
+import axios from 'axios';
+
+axios.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded';
+
+const urlEncode = function (data: any) {
+  var str = [];
+  for (var p in data) {
+    if (data.hasOwnProperty(p) && !(data[p] == undefined || data[p] == null)) {
+      str.push(encodeURIComponent(p) + '=' + (data[p] ? encodeURIComponent(data[p]) : ''));
+    }
+  }
+  return str.join('&');
+};
 
 export default class ChargebeeCheckout extends Component {
   cardRef: any;
@@ -17,9 +30,9 @@ export default class ChargebeeCheckout extends Component {
     this.cardRef = React.createRef();
     this.cbInstance = window.Chargebee.init({
       site: 'shubham-test',
-      publishableKey: 'key',
+      publishableKey: 'test_C6hQkncujNWjbdHai0LG6HpBHhnflcvKd',
     });
-    console.log(this.cbInstance)
+    console.log(this.cbInstance);
     this.state = {
       token: '',
       error: '',
@@ -100,6 +113,10 @@ export default class ChargebeeCheckout extends Component {
       .tokenize({})
       .then((data: any) => {
         this.setState({ loading: false, token: data.token, error: '' });
+        // Call the function and log a confirmation message
+        this.createPurchase().then(() => {
+          console.log('purchase created!');
+        });
       })
       .catch(() => {
         this.setState({
@@ -109,6 +126,48 @@ export default class ChargebeeCheckout extends Component {
         });
       });
   };
+
+  handleUpdatePM = () => {
+    console.log('requesting ....');
+    this.cbInstance.openCheckout({
+      hostedPage() {
+        console.log('requesting resource....');
+        return axios
+          .post(
+            'http://localhost:8082/api/generate_update_payment_method_url',
+            urlEncode({ plan_id: 'cbdemo_scale' }),
+          )
+          .then((response) => {
+            console.log(response.data);
+            response.data;
+          })
+          .catch((error) => {
+            console.log(error);
+          });
+      },
+      close() {
+        console.log('update payment method closed');
+      },
+    });
+  }
+
+  createPurchase(): Promise<void> {
+    const headers: Headers = new Headers();
+
+    headers.set('Content-Type', 'application/json');
+    headers.set('Accept', 'application/json');
+
+    const request: RequestInfo = new Request('http://localhost:3001/purchase', {
+      // We need to set the `method` to `POST` and assign the headers
+      method: 'POST',
+      headers: headers,
+    });
+
+    // Send the request and print the response
+    return fetch(request).then((res) => {
+      console.log('got response:', res);
+    });
+  }
 
   handleChange: any = (event: Event) => {
     const target: any = event.target;
@@ -194,6 +253,17 @@ export default class ChargebeeCheckout extends Component {
           >
             Pay $x & Tokenize
           </button>
+
+          <div className="bodyContainer">
+            <a href='#' onClick={this.handleUpdatePM}>
+              Update payment method
+            </a>
+          </div>
+
+          <a href="https://shubham-test.chargebee.com/pages/v3/SeawEcuP72e7cqSHQHf4w1YCTmw4fcaco/">
+            <button>Checkout</button>
+          </a>
+
           {this.state.error && (
             <div className="error" role="alert">
               {this.state.error}
